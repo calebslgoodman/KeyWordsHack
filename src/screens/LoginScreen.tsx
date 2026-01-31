@@ -15,28 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEmailAuth } from '../hooks/useEmailAuth';
 import { useAuth } from '../contexts/AuthContext';
 import AnimatedLogo from '../components/AnimatedLogo';
-
-// Warm, cozy color palette
-const colors = {
-  background: '#FDF8F5',
-  cardBg: '#FFFFFF',
-  primary: '#D94F3D',
-  primaryDark: '#B8412F',
-  primaryLight: '#E8D5CE',
-  text: '#3D2C29',
-  textMuted: '#8B7355',
-  textLight: '#A69485',
-  inputBg: '#FAF5F2',
-  inputBorder: '#E8DDD5',
-  success: '#6B8E6B',
-  successBg: '#F0F5F0',
-  error: '#C75050',
-  errorBg: '#FDF0F0',
-  info: '#5B7B9A',
-  infoBg: '#F0F5FA',
-  warning: '#B8860B',
-  warningBg: '#FDF8E8',
-};
+import { colors } from '../constants/colors';
 
 const LoginScreen: React.FC = () => {
   const { signIn, signUp, resetPassword, loading, error, message, clearMessages } = useEmailAuth();

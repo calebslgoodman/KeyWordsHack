@@ -5,78 +5,120 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
+import { colors } from '../constants/colors';
+import { fonts } from '../constants/fonts';
+import { RootStackParamList } from '../navigation/types';
 
-// Warm, cozy color palette (matching LoginScreen)
-const colors = {
-  background: '#FDF8F5',
-  cardBg: '#FFFFFF',
-  primary: '#D94F3D',
-  primaryDark: '#B8412F',
-  primaryLight: '#E8D5CE',
-  text: '#3D2C29',
-  textMuted: '#8B7355',
-  textLight: '#A69485',
-};
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const HomeScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
   const { user, signOut } = useAuth();
 
-  const firstName = user?.user_metadata?.name?.split(' ')[0] || 'there';
+  const firstName = user?.email?.split('@')[0] || 'there';
+
+  const handleStartPlanning = () => {
+    navigation.navigate('MealGoal');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
 
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hey {firstName}!</Text>
-          <Text style={styles.subGreeting}>What are you craving today?</Text>
-        </View>
-        <TouchableOpacity style={styles.profileButton}>
-          <Text style={styles.profileEmoji}>👤</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.content}>
-        {/* Main Action Card */}
-        <View style={styles.mainCard}>
-          <View style={styles.cardIconContainer}>
-            <Text style={styles.cardIcon}>🍽️</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Hey {firstName}!</Text>
+            <Text style={styles.subGreeting}>Ready to plan your week?</Text>
           </View>
-          <Text style={styles.cardTitle}>Find Your Meal</Text>
-          <Text style={styles.cardDescription}>
-            Swipe through dishes you love and we'll craft the perfect recipe just for you.
-          </Text>
-          <TouchableOpacity style={styles.startButton} activeOpacity={0.8}>
-            <Text style={styles.startButtonText}>Start Swiping</Text>
+          <TouchableOpacity style={styles.profileButton} onPress={signOut}>
+            <Text style={styles.profileEmoji}>👋</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Quick Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Meals Saved</Text>
+        {/* Main Card */}
+        <View style={styles.mainCard}>
+          <View style={styles.cardIconContainer}>
+            <Text style={styles.cardIcon}>📅</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Recipes Made</Text>
+          <Text style={styles.cardTitle}>Plan Your Meals</Text>
+          <Text style={styles.cardDescription}>
+            Set your weekly goal, swipe on dishes you love, and get a personalized meal plan.
+          </Text>
+          <TouchableOpacity
+            style={styles.startButton}
+            onPress={handleStartPlanning}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.startButtonText}>Start Planning</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* How It Works */}
+        <View style={styles.howItWorks}>
+          <Text style={styles.sectionTitle}>How It Works</Text>
+          <View style={styles.steps}>
+            <View style={styles.step}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>1</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={styles.stepTitle}>Set Your Goal</Text>
+                <Text style={styles.stepDescription}>
+                  Tell us how many meals you'll eat out this week
+                </Text>
+              </View>
+            </View>
+            <View style={styles.step}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>2</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={styles.stepTitle}>Swipe on Meals</Text>
+                <Text style={styles.stepDescription}>
+                  Right for yum, left for nope until you've got your week
+                </Text>
+              </View>
+            </View>
+            <View style={styles.step}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>3</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={styles.stepTitle}>Review & Confirm</Text>
+                <Text style={styles.stepDescription}>
+                  Remove any you've reconsidered, swipe for replacements
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.signOutButton}
-          onPress={signOut}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Features */}
+        <View style={styles.featuresRow}>
+          <View style={styles.featureCard}>
+            <Text style={styles.featureEmoji}>🤖</Text>
+            <Text style={styles.featureTitle}>AI-Powered</Text>
+            <Text style={styles.featureDescription}>
+              Learns your taste preferences
+            </Text>
+          </View>
+          <View style={styles.featureCard}>
+            <Text style={styles.featureEmoji}>🛒</Text>
+            <Text style={styles.featureTitle}>Easy Shopping</Text>
+            <Text style={styles.featureDescription}>
+              Grocery lists coming soon
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -86,28 +128,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  scrollContent: {
+    padding: 20,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 8,
+    marginBottom: 24,
   },
   greeting: {
+    fontFamily: fonts.bold,
     fontSize: 28,
-    fontWeight: '700',
     color: colors.text,
   },
   subGreeting: {
+    fontFamily: fonts.regular,
     fontSize: 15,
     color: colors.textMuted,
     marginTop: 2,
   },
   profileButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.cardBg,
     justifyContent: 'center',
     alignItems: 'center',
@@ -118,12 +162,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   profileEmoji: {
-    fontSize: 20,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
+    fontSize: 22,
   },
   mainCard: {
     backgroundColor: colors.cardBg,
@@ -135,6 +174,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 24,
     elevation: 4,
+    marginBottom: 24,
   },
   cardIconContainer: {
     width: 80,
@@ -143,24 +183,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   cardIcon: {
     fontSize: 40,
   },
   cardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
+    fontSize: 24,
     color: colors.text,
     marginBottom: 8,
   },
   cardDescription: {
+    fontFamily: fonts.regular,
     fontSize: 15,
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 24,
-    paddingHorizontal: 8,
+    marginBottom: 20,
   },
   startButton: {
     backgroundColor: colors.primary,
@@ -174,48 +214,82 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   startButtonText: {
-    color: '#fff',
+    fontFamily: fonts.semiBold,
     fontSize: 17,
-    fontWeight: '600',
+    color: '#fff',
   },
-  statsRow: {
-    flexDirection: 'row',
-    marginTop: 20,
+  howItWorks: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    color: colors.text,
+    marginBottom: 16,
+  },
+  steps: {
     gap: 12,
   },
-  statCard: {
+  step: {
+    flexDirection: 'row',
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 16,
+  },
+  stepNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  stepNumberText: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: colors.primaryDark,
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+    color: colors.text,
+  },
+  stepDescription: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  featuresRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  featureCard: {
     flex: 1,
     backgroundColor: colors.cardBg,
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     alignItems: 'center',
-    shadowColor: '#8B7355',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
   },
-  statNumber: {
+  featureEmoji: {
     fontSize: 28,
-    fontWeight: '700',
+    marginBottom: 8,
+  },
+  featureTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
     color: colors.text,
+    marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 13,
+  featureDescription: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
     color: colors.textMuted,
-    marginTop: 4,
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-  },
-  signOutButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  signOutText: {
-    color: colors.textLight,
-    fontSize: 15,
+    textAlign: 'center',
   },
 });
 

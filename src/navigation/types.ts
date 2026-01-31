@@ -2,9 +2,10 @@ export type RootStackParamList = {
   Login: undefined;
   Onboarding: undefined;
   Home: undefined;
+  MealGoal: undefined;
   Swipe: undefined;
-  Recipe: { recipeId: string };
-  Checkout: { ingredients: string[] };
+  SwipeReview: undefined;
+  MealPlanSummary: undefined;
 };
 
 declare global {
