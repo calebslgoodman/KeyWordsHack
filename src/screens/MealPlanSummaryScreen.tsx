@@ -18,7 +18,10 @@ import { MEALS } from '../data/meals';
 import { useMealPlan } from '../contexts/MealPlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import { RootStackParamList } from '../navigation/types';
-import { getTasteProfile } from '../lib/api';
+import { getTasteProfile, getMealById as getMealByIdFromApi } from '../lib/api';
+import { KrogerService } from '../lib/kroger';
+import * as Linking from 'expo-linking';
+import { Alert } from 'react-native';
 import {
   generateAIGroceryList,
   getAIMealPlanInsights,
@@ -41,6 +44,8 @@ const MealPlanSummaryScreen: React.FC = () => {
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [showGroceryList, setShowGroceryList] = useState(false);
   const [expandedInsightIndex, setExpandedInsightIndex] = useState<number | null>(null);
+  const [krogerLoading, setKrogerLoading] = useState(false);
+  const [krogerStatus, setKrogerStatus] = useState<string>('');
 
   const getMealById = (mealId: string) => MEALS.find(m => m.meal_id === mealId);
 
@@ -137,6 +142,114 @@ const MealPlanSummaryScreen: React.FC = () => {
       index: 0,
       routes: [{ name: 'MealGoal' }],
     });
+  };
+
+  // Handle Deep Linking for Kroger Auth
+  useEffect(() => {
+    const handleDeepLink = async (event: { url: string }) => {
+      const { url } = event;
+      if (url.includes('callback') && url.includes('code=')) {
+        const code = new URL(url).searchParams.get('code');
+        if (code) {
+          try {
+            setKrogerStatus('Authenticating...');
+            await KrogerService.exchangeCodeForToken(code);
+            Alert.alert('Success', 'Kroger connected! Tap "Push to Kroger Cart" again to start shopping.');
+            setKrogerStatus('');
+          } catch (error) {
+            console.error('Auth error', error);
+            Alert.alert('Error', 'Failed to connect to Kroger.');
+          }
+        }
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    return () => subscription.remove();
+  }, []);
+
+  const handlePushToKroger = async () => {
+    setKrogerLoading(true);
+    setKrogerStatus('Checking connection...');
+
+    try {
+      // 1. Check Auth
+      let token = await KrogerService.getToken();
+      if (!token) {
+        Alert.alert(
+          'Connect Kroger',
+          'We need to connect your Kroger account to add items to your cart.',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => setKrogerLoading(false) },
+            {
+              text: 'Connect',
+              onPress: async () => {
+                const authUrl = KrogerService.getAuthUrl();
+                await Linking.openURL(authUrl);
+                setKrogerLoading(false);
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      // 2. Get Location (Hardcoded Zip for MVP context)
+      setKrogerStatus('Finding store...');
+      const locations = await KrogerService.searchLocations('45202'); // Default Zip
+      if (locations.length === 0) throw new Error('No stores found');
+      const locationId = locations[0].locationId;
+
+      // 3. Search & Add Products
+      // Gather ingredients from all accepted meals
+      const allIngredientsWithQty: Map<string, number> = new Map();
+
+      for (const swipe of acceptedMeals) {
+        let meal: any = getMealById(swipe.meal_id);
+        if (!meal) meal = await getMealByIdFromApi(swipe.meal_id);
+        if (meal?.ingredients) {
+          meal.ingredients.forEach((ing: string) => {
+            allIngredientsWithQty.set(ing, (allIngredientsWithQty.get(ing) || 0) + 1);
+          });
+        }
+      }
+
+      setKrogerStatus(`Searching for ${allIngredientsWithQty.size} items...`);
+
+      const itemsToAdd = [];
+      const missingItems = [];
+
+      for (const [ingredient, qty] of allIngredientsWithQty.entries()) {
+        // Use dietary smarts if available (could fetch from tasteProfile)
+        const products = await KrogerService.searchProducts(ingredient, locationId, []);
+        if (products.length > 0) {
+          itemsToAdd.push({ upc: products[0].productId, quantity: 1 });
+        } else {
+          missingItems.push(ingredient);
+        }
+      }
+
+      // 4. Bulk Add
+      if (itemsToAdd.length > 0) {
+        setKrogerStatus(`Adding ${itemsToAdd.length} items to cart...`);
+        await KrogerService.addToCart(itemsToAdd);
+
+        let msg = `Successfully added ${itemsToAdd.length} items to your Kroger cart!`;
+        if (missingItems.length > 0) {
+          msg += `\n\nCould not find: ${missingItems.slice(0, 3).join(', ')}${missingItems.length > 3 ? '...' : ''}`;
+        }
+        Alert.alert('Done', msg);
+      } else {
+        Alert.alert('Error', 'Could not find any matching products.');
+      }
+
+    } catch (error) {
+      console.error('Kroger Push Error', error);
+      Alert.alert('Error', 'Failed to push to Kroger cart.');
+    } finally {
+      setKrogerLoading(false);
+      setKrogerStatus('');
+    }
   };
 
   const MealSection = ({ title, meals, color }: { title: string; meals: typeof acceptedMeals; color: string }) => (
@@ -346,6 +459,43 @@ const MealPlanSummaryScreen: React.FC = () => {
 
         {/* Actions */}
         <View style={styles.actions}>
+          {/* Kroger Button */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#1D51A6', // Kroger Blue
+              paddingVertical: 16,
+              borderRadius: 14,
+              alignItems: 'center',
+              marginBottom: 4,
+              flexDirection: 'row',
+              justifyContent: 'center',
+            }}
+            onPress={handlePushToKroger}
+            disabled={krogerLoading}
+          >
+            {krogerLoading ? (
+              <>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={{
+                  fontFamily: fonts.bold,
+                  fontSize: 16,
+                  color: '#fff',
+                  marginLeft: 10
+                }}>
+                  {krogerStatus || 'Loading...'}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={{ fontSize: 20, marginRight: 8 }}>🛒</Text>
+                <Text style={{
+                  fontFamily: fonts.semiBold,
+                  fontSize: 17,
+                  color: '#fff',
+                }}>Push to Kroger Cart</Text>
+              </>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.homeButton}
             onPress={handleBackToDashboard}

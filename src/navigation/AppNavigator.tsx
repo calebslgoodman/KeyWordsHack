@@ -30,8 +30,17 @@ const AppNavigator: React.FC = () => {
     return <LoadingScreen />;
   }
 
+  const linking = {
+    prefixes: ['exp://', 'mealswipe://', 'http://localhost:8000'],
+    config: {
+      screens: {
+        MealPlanSummary: 'callback',
+      },
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

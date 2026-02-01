@@ -1,0 +1,14 @@
+{
+    "mcpServers": {
+        "instacart": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@instacart/mcp-server@latest"
+            ],
+            "env": {
+                "INSTACART_API_KEY": "${EXPO_PUBLIC_INSTACART_API_KEY}"
+            }
+        }
+    }
+}
