@@ -15,10 +15,15 @@ import { MEALS } from '../data/meals';
 import { Meal, SwipeDirection, FoodSwipe } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useMealPlan } from '../contexts/MealPlanContext';
-import { saveFoodSwipe, getMeals } from '../lib/api';
+import { saveFoodSwipe, getMeals, getTasteProfile } from '../lib/api';
 import SwipeCard from '../components/SwipeCard';
 import MealDetailModal from '../components/MealDetailModal';
 import { RootStackParamList } from '../navigation/types';
+import {
+  getAIMealRecommendations,
+  isKeywordsAIConfigured,
+  MealRecommendation,
+} from '../lib/keywords-ai';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -32,6 +37,11 @@ const SwipeScreen: React.FC = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [meals, setMeals] = useState<Meal[]>(MEALS); // Default to local data
   const [loadingMeals, setLoadingMeals] = useState(true);
+
+  // AI-powered recommendations from Keywords AI Gateway
+  const [aiRecommendations, setAiRecommendations] = useState<Map<string, MealRecommendation>>(new Map());
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiReasonExpanded, setAiReasonExpanded] = useState(false);
 
   // Load meals from Supabase on mount
   useEffect(() => {
@@ -52,6 +62,45 @@ const SwipeScreen: React.FC = () => {
 
     loadMeals();
   }, []);
+
+  // Load AI recommendations via Keywords AI Gateway
+  useEffect(() => {
+    const loadAIRecommendations = async () => {
+      if (!isKeywordsAIConfigured()) {
+        console.log('Keywords AI not configured, skipping AI recommendations');
+        return;
+      }
+
+      setAiEnabled(true);
+
+      try {
+        // Get user's taste profile for personalized recommendations
+        const tasteProfile = user?.id ? await getTasteProfile(user.id) : null;
+
+        console.log('Requesting AI meal recommendations via Keywords AI Gateway...');
+        const recommendations = await getAIMealRecommendations(
+          tasteProfile,
+          swipes,
+          meals,
+          'breakfast', // Start with breakfast
+          10
+        );
+
+        // Create a map for quick lookup
+        const recMap = new Map<string, MealRecommendation>();
+        recommendations.forEach(rec => recMap.set(rec.meal_id, rec));
+        setAiRecommendations(recMap);
+
+        console.log(`Loaded ${recommendations.length} AI recommendations`);
+      } catch (error) {
+        // AI recommendations unavailable - continuing without
+      }
+    };
+
+    if (meals.length > 0 && !loadingMeals) {
+      loadAIRecommendations();
+    }
+  }, [meals, loadingMeals, user?.id, swipes.length]);
 
   // Reset index when screen comes into focus
   useFocusEffect(
@@ -135,6 +184,14 @@ const SwipeScreen: React.FC = () => {
 
   const hasMoreMeals = currentIndex < availableMeals.length;
 
+  // Get AI recommendation for current meal (if available)
+  const currentRecommendation = currentMeal ? aiRecommendations.get(currentMeal.meal_id) : null;
+
+  // Reset expanded state when meal changes
+  useEffect(() => {
+    setAiReasonExpanded(false);
+  }, [currentIndex]);
+
   // Show loading state while fetching meals
   if (loadingMeals) {
     return (
@@ -171,6 +228,34 @@ const SwipeScreen: React.FC = () => {
           <View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
       </View>
+
+      {/* AI Recommendation Banner - Powered by Keywords AI */}
+      {aiEnabled && currentRecommendation && (
+        <TouchableOpacity
+          style={styles.aiRecommendationBanner}
+          onPress={() => setAiReasonExpanded(!aiReasonExpanded)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.aiRecommendationIcon}>🤖</Text>
+          <View style={styles.aiRecommendationContent}>
+            <Text style={styles.aiRecommendationLabel}>AI Pick for You</Text>
+            <Text
+              style={styles.aiRecommendationReason}
+              numberOfLines={aiReasonExpanded ? undefined : 1}
+            >
+              {currentRecommendation.reason}
+            </Text>
+            {!aiReasonExpanded && (
+              <Text style={styles.aiTapHint}>Tap to expand</Text>
+            )}
+          </View>
+          <View style={styles.aiConfidenceBadge}>
+            <Text style={styles.aiConfidenceText}>
+              {Math.round(currentRecommendation.confidence_score * 100)}%
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Cards */}
       <View style={styles.cardsContainer}>
@@ -346,6 +431,59 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 12,
     color: colors.textLight,
+  },
+  // AI Recommendation Banner Styles - Keywords AI Integration
+  aiRecommendationBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.primaryLight,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  aiRecommendationIcon: {
+    fontSize: 20,
+    marginRight: 10,
+    marginTop: 2,
+  },
+  aiRecommendationContent: {
+    flex: 1,
+  },
+  aiRecommendationLabel: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    color: colors.primaryDark,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  aiRecommendationReason: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.text,
+    marginTop: 2,
+  },
+  aiTapHint: {
+    fontFamily: fonts.regular,
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  aiConfidenceBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+  aiConfidenceText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: '#fff',
   },
 });
 

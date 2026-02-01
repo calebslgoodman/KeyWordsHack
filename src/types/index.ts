@@ -181,3 +181,97 @@ export const ADVENTURE_OPTIONS = [
   { label: 'Balanced - mix of familiar & new', value: 'balanced' as const },
   { label: 'Exploratory - surprise me!', value: 'exploratory' as const },
 ];
+
+// ============================================================================
+// Keywords AI Integration Types
+// Centralized types for AI-powered features routed through Keywords AI Gateway
+// ============================================================================
+
+/**
+ * AI Meal Recommendation - returned by Keywords AI after analyzing user preferences
+ */
+export interface AIMealRecommendation {
+  meal_id: string;
+  name: string;
+  confidence_score: number; // 0-1, likelihood user will enjoy
+  reason: string; // Brief personalized explanation
+  meal_type: MealType;
+}
+
+/**
+ * Grocery Item - individual item in AI-generated shopping list
+ */
+export interface AIGroceryItem {
+  name: string;
+  quantity: string;
+  unit: string;
+  category: 'produce' | 'dairy' | 'meat' | 'pantry' | 'frozen' | 'bakery' | 'other';
+  estimated_price?: number;
+}
+
+/**
+ * AI Grocery List - complete shopping list with organization and tips
+ */
+export interface AIGroceryList {
+  items: AIGroceryItem[];
+  total_estimated_cost: number;
+  categories: { [key: string]: AIGroceryItem[] };
+  tips: string[];
+}
+
+/**
+ * Meal Plan Insight - individual insight from AI analysis
+ */
+export interface AIMealPlanInsight {
+  category: 'nutrition' | 'variety' | 'budget' | 'time' | 'tip';
+  title: string;
+  description: string;
+  score?: number; // 0-100 for scored categories
+  emoji: string;
+}
+
+/**
+ * Meal Plan Analysis - comprehensive AI analysis of user's meal plan
+ */
+export interface AIMealPlanAnalysis {
+  overall_score: number; // 0-100
+  insights: AIMealPlanInsight[];
+  weekly_prep_tips: string[];
+  nutritional_summary: {
+    total_calories: number;
+    avg_calories_per_meal: number;
+    cuisine_variety: string[];
+    time_efficiency: string;
+  };
+}
+
+/**
+ * Recipe Adaptation - AI-modified recipe for user's dietary needs
+ */
+export interface AIAdaptedRecipe {
+  original_name: string;
+  adapted_name: string;
+  substitutions: Array<{
+    original: string;
+    replacement: string;
+    reason: string;
+  }>;
+  adapted_ingredients: string[];
+  adapted_instructions: string[];
+  notes: string[];
+}
+
+/**
+ * Keywords AI Configuration - for debugging and status checks
+ */
+export interface KeywordsAIStatus {
+  isConfigured: boolean;
+  baseUrl: string;
+  model: string;
+  promptIds: {
+    mealRecommendation: string;
+    groceryList: string;
+    mealInsights: string;
+    recipeAdaptation: string;
+  };
+}
