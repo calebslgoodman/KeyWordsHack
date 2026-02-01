@@ -8,6 +8,8 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -19,7 +21,7 @@ import { useMealPlan } from '../contexts/MealPlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import { RootStackParamList } from '../navigation/types';
 import { getTasteProfile, getMealById as getMealByIdFromApi } from '../lib/api';
-import { KrogerService } from '../lib/kroger';
+// import { KrogerService } from '../lib/kroger';
 import * as Linking from 'expo-linking';
 import { Alert } from 'react-native';
 import {
@@ -44,8 +46,11 @@ const MealPlanSummaryScreen: React.FC = () => {
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [showGroceryList, setShowGroceryList] = useState(false);
   const [expandedInsightIndex, setExpandedInsightIndex] = useState<number | null>(null);
-  const [krogerLoading, setKrogerLoading] = useState(false);
-  const [krogerStatus, setKrogerStatus] = useState<string>('');
+
+  // Walmart animation state
+  const [walmartLoading, setWalmartLoading] = useState(false);
+  const cartAnimation = React.useRef(new Animated.Value(0)).current;
+
 
   const getMealById = (mealId: string) => MEALS.find(m => m.meal_id === mealId);
 
@@ -145,6 +150,8 @@ const MealPlanSummaryScreen: React.FC = () => {
   };
 
   // Handle Deep Linking for Kroger Auth
+  // Handle Deep Linking for Kroger Auth (Disabled for now)
+  /*
   useEffect(() => {
     const handleDeepLink = async (event: { url: string }) => {
       const { url } = event;
@@ -167,89 +174,27 @@ const MealPlanSummaryScreen: React.FC = () => {
     const subscription = Linking.addEventListener('url', handleDeepLink);
     return () => subscription.remove();
   }, []);
+  */
 
-  const handlePushToKroger = async () => {
-    setKrogerLoading(true);
-    setKrogerStatus('Checking connection...');
+  const handleOpenWalmartCart = () => {
+    setWalmartLoading(true);
+    cartAnimation.setValue(0);
 
-    try {
-      // 1. Check Auth
-      let token = await KrogerService.getToken();
-      if (!token) {
-        Alert.alert(
-          'Connect Kroger',
-          'We need to connect your Kroger account to add items to your cart.',
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => setKrogerLoading(false) },
-            {
-              text: 'Connect',
-              onPress: async () => {
-                const authUrl = KrogerService.getAuthUrl();
-                await Linking.openURL(authUrl);
-                setKrogerLoading(false);
-              }
-            }
-          ]
-        );
-        return;
+    Animated.timing(cartAnimation, {
+      toValue: 1,
+      duration: 5000, // 5 seconds spin
+      easing: Easing.linear,
+      useNativeDriver: true,
+    }).start(async () => {
+      try {
+        await Linking.openURL('https://www.walmart.com/cart');
+      } catch (error) {
+        console.error('Error opening Walmart cart:', error);
+        Alert.alert('Error', 'Could not open Walmart cart.');
+      } finally {
+        setWalmartLoading(false);
       }
-
-      // 2. Get Location (Hardcoded Zip for MVP context)
-      setKrogerStatus('Finding store...');
-      const locations = await KrogerService.searchLocations('45202'); // Default Zip
-      if (locations.length === 0) throw new Error('No stores found');
-      const locationId = locations[0].locationId;
-
-      // 3. Search & Add Products
-      // Gather ingredients from all accepted meals
-      const allIngredientsWithQty: Map<string, number> = new Map();
-
-      for (const swipe of acceptedMeals) {
-        let meal: any = getMealById(swipe.meal_id);
-        if (!meal) meal = await getMealByIdFromApi(swipe.meal_id);
-        if (meal?.ingredients) {
-          meal.ingredients.forEach((ing: string) => {
-            allIngredientsWithQty.set(ing, (allIngredientsWithQty.get(ing) || 0) + 1);
-          });
-        }
-      }
-
-      setKrogerStatus(`Searching for ${allIngredientsWithQty.size} items...`);
-
-      const itemsToAdd = [];
-      const missingItems = [];
-
-      for (const [ingredient, qty] of allIngredientsWithQty.entries()) {
-        // Use dietary smarts if available (could fetch from tasteProfile)
-        const products = await KrogerService.searchProducts(ingredient, locationId, []);
-        if (products.length > 0) {
-          itemsToAdd.push({ upc: products[0].productId, quantity: 1 });
-        } else {
-          missingItems.push(ingredient);
-        }
-      }
-
-      // 4. Bulk Add
-      if (itemsToAdd.length > 0) {
-        setKrogerStatus(`Adding ${itemsToAdd.length} items to cart...`);
-        await KrogerService.addToCart(itemsToAdd);
-
-        let msg = `Successfully added ${itemsToAdd.length} items to your Kroger cart!`;
-        if (missingItems.length > 0) {
-          msg += `\n\nCould not find: ${missingItems.slice(0, 3).join(', ')}${missingItems.length > 3 ? '...' : ''}`;
-        }
-        Alert.alert('Done', msg);
-      } else {
-        Alert.alert('Error', 'Could not find any matching products.');
-      }
-
-    } catch (error) {
-      console.error('Kroger Push Error', error);
-      Alert.alert('Error', 'Failed to push to Kroger cart.');
-    } finally {
-      setKrogerLoading(false);
-      setKrogerStatus('');
-    }
+    });
   };
 
   const MealSection = ({ title, meals, color }: { title: string; meals: typeof acceptedMeals; color: string }) => (
@@ -462,29 +407,31 @@ const MealPlanSummaryScreen: React.FC = () => {
           {/* Kroger Button */}
           <TouchableOpacity
             style={{
-              backgroundColor: '#1D51A6', // Kroger Blue
+              backgroundColor: '#0071DC', // Walmart Blue
               paddingVertical: 16,
               borderRadius: 14,
               alignItems: 'center',
               marginBottom: 4,
               flexDirection: 'row',
               justifyContent: 'center',
+              overflow: 'hidden', // Clip the animation
+              minHeight: 56, // Maintain height
             }}
-            onPress={handlePushToKroger}
-            disabled={krogerLoading}
+            onPress={handleOpenWalmartCart}
+            disabled={walmartLoading}
+            activeOpacity={0.9}
           >
-            {krogerLoading ? (
-              <>
-                <ActivityIndicator color="#fff" size="small" />
-                <Text style={{
-                  fontFamily: fonts.bold,
-                  fontSize: 16,
-                  color: '#fff',
-                  marginLeft: 10
-                }}>
-                  {krogerStatus || 'Loading...'}
-                </Text>
-              </>
+            {walmartLoading ? (
+              <Animated.View style={{
+                transform: [{
+                  rotate: cartAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '1800deg'] // 5 full spins
+                  })
+                }]
+              }}>
+                <Text style={{ fontSize: 28 }}>🛒</Text>
+              </Animated.View>
             ) : (
               <>
                 <Text style={{ fontSize: 20, marginRight: 8 }}>🛒</Text>
@@ -492,7 +439,7 @@ const MealPlanSummaryScreen: React.FC = () => {
                   fontFamily: fonts.semiBold,
                   fontSize: 17,
                   color: '#fff',
-                }}>Push to Kroger Cart</Text>
+                }}>Open Walmart Cart</Text>
               </>
             )}
           </TouchableOpacity>
