@@ -48,6 +48,14 @@ const MealPlanSummaryScreen: React.FC = () => {
     });
   };
 
+  const handleBackToDashboard = () => {
+    // Go back to meal goal screen without resetting
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'MealGoal' }],
+    });
+  };
+
   const MealSection = ({ title, meals, color }: { title: string; meals: typeof acceptedMeals; color: string }) => (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -130,6 +138,14 @@ const MealPlanSummaryScreen: React.FC = () => {
 
         {/* Actions */}
         <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.homeButton}
+            onPress={handleBackToDashboard}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.homeButtonText}>← Back to Dashboard</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={handleStartNewWeek}
@@ -304,6 +320,19 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: 12,
+  },
+  homeButton: {
+    backgroundColor: colors.cardBg,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  homeButtonText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 16,
+    color: colors.primary,
   },
   primaryButton: {
     backgroundColor: colors.primary,

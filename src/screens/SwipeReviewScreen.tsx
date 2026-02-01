@@ -16,15 +16,17 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
 import { MEALS } from '../data/meals';
-import { FoodSwipe } from '../types';
-import { saveFoodSwipes } from '../lib/api';
+import { FoodSwipe, MealPlanEntry } from '../types';
+import { saveFoodSwipes, saveMealPlan } from '../lib/api';
 import { useMealPlan } from '../contexts/MealPlanContext';
+import { useAuth } from '../contexts/AuthContext';
 import { RootStackParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const SwipeReviewScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
   const { acceptedMeals, targetMeals, removeSwipe, swipes } = useMealPlan();
   const [saving, setSaving] = useState(false);
   const [selectedForDeletion, setSelectedForDeletion] = useState<string[]>([]);
@@ -64,16 +66,44 @@ const SwipeReviewScreen: React.FC = () => {
 
   const handleConfirm = async () => {
     setSaving(true);
-    const result = await saveFoodSwipes(swipes);
+
+    // Count quantities of each accepted meal
+    const mealCounts = new Map<string, number>();
+    acceptedMeals.forEach(swipe => {
+      const currentCount = mealCounts.get(swipe.meal_id) || 0;
+      mealCounts.set(swipe.meal_id, currentCount + 1);
+    });
+
+    // Convert to MealPlanEntry format
+    const mealPlanEntries: MealPlanEntry[] = Array.from(mealCounts.entries()).map(
+      ([meal_id, quantity]) => ({ meal_id, quantity })
+    );
+
+    console.log('Saving meal plan:', mealPlanEntries);
+
+    // Save swipes
+    const swipesResult = await saveFoodSwipes(swipes);
+
+    // Save meal plan with quantities
+    let mealPlanResult = { success: true };
+    if (user?.id) {
+      mealPlanResult = await saveMealPlan(user.id, mealPlanEntries);
+    }
+
     setSaving(false);
 
-    if (result.success) {
+    if (swipesResult.success && mealPlanResult.success) {
       navigation.reset({
         index: 0,
         routes: [{ name: 'MealPlanSummary' }],
       });
     } else {
-      Alert.alert('Error', 'Failed to save your meal plan. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to save your meal plan. Please try again.\n\n' +
+        (!swipesResult.success ? `Swipes: ${swipesResult.error}\n` : '') +
+        (!mealPlanResult.success ? `Meal Plan: ${mealPlanResult.error}` : '')
+      );
     }
   };
 

@@ -41,6 +41,7 @@ export interface Meal {
   calories: number;
   cook_time_minutes: number;
   ingredients: string[];
+  instructions: string[];
 }
 
 export interface FoodSwipe {
@@ -50,6 +51,30 @@ export interface FoodSwipe {
   swipe: SwipeDirection;
   confidence: number; // 1-5
   timestamp: string;
+}
+
+export interface MealPlanGoal {
+  user_id: string;
+  meals_per_week: number; // 0-21
+  max_cook_time_minutes: number; // Weekly cooking time preference
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserMealPlan {
+  id: string;
+  user_id: string;
+  meal_id: string;
+  quantity: number; // How many times to make this meal (1-7)
+  week_start_date: string; // ISO date string
+  status: 'active' | 'archived' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MealPlanEntry {
+  meal_id: string;
+  quantity: number;
 }
 
 // Onboarding Types
@@ -119,7 +144,7 @@ export const BUDGET_OPTIONS = [
 ];
 
 export const KITCHEN_TOOLS = [
-  'Microwave only',
+  'Microwave',
   'Stovetop',
   'Oven',
   'Air Fryer',

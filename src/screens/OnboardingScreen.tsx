@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -53,6 +54,10 @@ const OnboardingScreen: React.FC = () => {
   });
 
   const [customDislikes, setCustomDislikes] = useState('');
+  const [customKitchenTools, setCustomKitchenTools] = useState('');
+  const [cuisine1, setCuisine1] = useState('');
+  const [cuisine2, setCuisine2] = useState('');
+  const [cuisine3, setCuisine3] = useState('');
 
   const toggleSelection = (
     key: keyof OnboardingData,
@@ -86,8 +91,8 @@ const OnboardingScreen: React.FC = () => {
         return !!data.budget_range;
       case 5: // Kitchen tools - optional
         return true;
-      case 6: // Cuisines - max 3
-        return data.preferred_cuisines.length > 0 && data.preferred_cuisines.length <= 3;
+      case 6: // Cuisines - at least 1 required
+        return cuisine1.trim().length > 0;
       case 7: // Spice - required
         return !!data.spice_tolerance;
       case 8: // Adventure - required
@@ -126,9 +131,22 @@ const OnboardingScreen: React.FC = () => {
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
+    // Add custom kitchen tools to the list
+    const customKitchenToolsList = customKitchenTools
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    // Collect cuisines from text inputs
+    const cuisineList = [cuisine1, cuisine2, cuisine3]
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
     const finalData: OnboardingData = {
       ...data,
       disliked_ingredients: [...data.disliked_ingredients, ...customDislikesList],
+      kitchen_tools: [...data.kitchen_tools, ...customKitchenToolsList],
+      preferred_cuisines: cuisineList,
     };
 
     const result = await saveTasteProfile(user?.id || 'demo-user', finalData);
@@ -215,25 +233,55 @@ const OnboardingScreen: React.FC = () => {
             options={KITCHEN_TOOLS}
             selected={data.kitchen_tools}
             onSelect={(v) => toggleSelection('kitchen_tools', v)}
+            showFreeText
+            freeTextValue={customKitchenTools}
+            onFreeTextChange={setCustomKitchenTools}
+            freeTextPlaceholder="Other equipment (comma separated)..."
           />
         );
       case 6:
         return (
-          <OnboardingStep
-            title="Favorite cuisines?"
-            subtitle="Pick your top 3 - we'll prioritize these."
-            options={CUISINE_OPTIONS}
-            selected={data.preferred_cuisines}
-            onSelect={(v) => toggleSelection('preferred_cuisines', v)}
-            maxSelections={3}
-            required
-          />
+          <View style={styles.customStepContainer}>
+            <View style={styles.stepHeader}>
+              <Text style={styles.stepTitle}>Favorite cuisines?</Text>
+              <Text style={styles.stepSubtitle}>
+                Enter your top 3 cuisines - we'll prioritize these.
+              </Text>
+              <Text style={styles.required}>Required (at least 1)</Text>
+            </View>
+            <View style={styles.cuisineInputsContainer}>
+              <TextInput
+                style={styles.cuisineInput}
+                placeholder="1st favorite (e.g., Italian)"
+                placeholderTextColor={colors.textLight}
+                value={cuisine1}
+                onChangeText={setCuisine1}
+                autoCapitalize="words"
+              />
+              <TextInput
+                style={styles.cuisineInput}
+                placeholder="2nd favorite (e.g., Mexican)"
+                placeholderTextColor={colors.textLight}
+                value={cuisine2}
+                onChangeText={setCuisine2}
+                autoCapitalize="words"
+              />
+              <TextInput
+                style={styles.cuisineInput}
+                placeholder="3rd favorite (e.g., Japanese)"
+                placeholderTextColor={colors.textLight}
+                value={cuisine3}
+                onChangeText={setCuisine3}
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
         );
       case 7:
         return (
           <OnboardingStep
             title="Spice tolerance?"
-            subtitle="How much heat can you handle?"
+            subtitle="Not all dishes will be spicy - this just tells us how spicy the spicy dishes should be when they do appear."
             options={SPICE_OPTIONS}
             selected={[data.spice_tolerance]}
             onSelect={(v) => setSingleValue('spice_tolerance', v)}
@@ -396,6 +444,41 @@ const styles = StyleSheet.create({
   skipText: {
     color: colors.textMuted,
     fontSize: 15,
+  },
+  customStepContainer: {
+    flex: 1,
+  },
+  stepHeader: {
+    marginBottom: 20,
+  },
+  stepTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  stepSubtitle: {
+    fontSize: 15,
+    color: colors.textMuted,
+    lineHeight: 22,
+  },
+  required: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  cuisineInputsContainer: {
+    gap: 16,
+  },
+  cuisineInput: {
+    backgroundColor: colors.inputBg,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    color: colors.text,
+    borderWidth: 1.5,
+    borderColor: colors.inputBorder,
   },
 });
 

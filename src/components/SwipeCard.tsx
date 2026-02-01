@@ -113,35 +113,36 @@ const SwipeCard: React.FC<SwipeCardProps> = ({ meal, onSwipe, onTap, isTop }) =>
       style={[styles.card, cardStyle]}
       {...panResponder.panHandlers}
     >
-      <TouchableOpacity activeOpacity={1} onPress={onTap} style={styles.touchable}>
-        <Image source={{ uri: meal.image_url }} style={styles.image} />
+      <Image source={{ uri: meal.image_url }} style={styles.image} />
 
-        {/* Overlays */}
-        <Animated.View style={[styles.overlay, styles.likeOverlay, { opacity: likeOpacity }]}>
-          <Text style={styles.overlayText}>YUM!</Text>
-        </Animated.View>
+      {/* Overlays */}
+      <Animated.View style={[styles.overlay, styles.likeOverlay, { opacity: likeOpacity }]}>
+        <Text style={styles.overlayText}>YUM!</Text>
+      </Animated.View>
 
-        <Animated.View style={[styles.overlay, styles.nopeOverlay, { opacity: nopeOpacity }]}>
-          <Text style={styles.overlayText}>NOPE</Text>
-        </Animated.View>
+      <Animated.View style={[styles.overlay, styles.nopeOverlay, { opacity: nopeOpacity }]}>
+        <Text style={styles.overlayText}>NOPE</Text>
+      </Animated.View>
 
-        <Animated.View style={[styles.overlay, styles.maybeOverlay, { opacity: maybeOpacity }]}>
-          <Text style={styles.overlayText}>MAYBE</Text>
-        </Animated.View>
+      <Animated.View style={[styles.overlay, styles.maybeOverlay, { opacity: maybeOpacity }]}>
+        <Text style={styles.overlayText}>MAYBE</Text>
+      </Animated.View>
 
-        {/* Info */}
-        <View style={styles.infoContainer}>
-          <View style={styles.mealTypeBadge}>
-            <Text style={styles.mealTypeText}>{meal.meal_type.toUpperCase()}</Text>
-          </View>
-          <Text style={styles.name}>{meal.name}</Text>
-          <Text style={styles.cuisine}>{meal.cuisine}</Text>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>🔥 {meal.calories} cal</Text>
-            <Text style={styles.metaText}>⏱️ {meal.cook_time_minutes} min</Text>
-          </View>
+      {/* Info */}
+      <View style={styles.infoContainer}>
+        <View style={styles.mealTypeBadge}>
+          <Text style={styles.mealTypeText}>{meal.meal_type.toUpperCase()}</Text>
         </View>
-      </TouchableOpacity>
+        <Text style={styles.name}>{meal.name}</Text>
+        <Text style={styles.cuisine}>{meal.cuisine}</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.metaText}>🔥 {meal.calories} cal</Text>
+          <Text style={styles.metaText}>⏱️ {meal.cook_time_minutes} min</Text>
+        </View>
+        <TouchableOpacity style={styles.recipeButton} onPress={onTap} activeOpacity={0.8}>
+          <Text style={styles.recipeButtonText}>View Recipe</Text>
+        </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 };
@@ -162,9 +163,6 @@ const styles = StyleSheet.create({
   },
   cardBack: {
     transform: [{ scale: 0.95 }],
-  },
-  touchable: {
-    flex: 1,
   },
   image: {
     width: '100%',
@@ -231,10 +229,24 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     gap: 16,
+    marginBottom: 12,
   },
   metaText: {
     fontSize: 14,
     color: colors.textMuted,
+  },
+  recipeButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  recipeButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 
