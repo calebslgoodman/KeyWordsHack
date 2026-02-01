@@ -17,7 +17,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMealPlan } from '../contexts/MealPlanContext';
 import SwipeCard from '../components/SwipeCard';
 import MealDetailModal from '../components/MealDetailModal';
-import ConfidenceSelector from '../components/ConfidenceSelector';
 import { RootStackParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -30,21 +29,51 @@ const SwipeScreen: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showDetail, setShowDetail] = useState(false);
-  const [pendingSwipe, setPendingSwipe] = useState<{
-    meal: Meal;
-    direction: SwipeDirection;
-  } | null>(null);
+  const [currentMealType, setCurrentMealType] = useState<'breakfast' | 'lunch' | 'dinner'>('breakfast');
 
-  // Shuffle meals for variety, excluding already swiped meals
+  // Filter meals by current type and shuffle
   const availableMeals = useMemo(() => {
     const swipedIds = swipes.map(s => s.meal_id);
-    const unswipedMeals = MEALS.filter(m => !swipedIds.includes(m.meal_id));
+    const unswipedMeals = MEALS.filter(m => !swipedIds.includes(m.meal_id) && m.meal_type === currentMealType);
     return [...unswipedMeals].sort(() => Math.random() - 0.5);
-  }, [swipes.length === 0]); // Only reshuffle when starting fresh
+  }, [swipes.length, currentMealType]); // Reshuffle when meal type changes
+
+  // Calculate meal distribution
+  const breakfastNeeded = Math.floor(targetMeals / 3) - (targetMeals % 3 === 1 ? 1 : targetMeals % 3 === 2 ? 1 : 0);
+  const lunchNeeded = Math.ceil(targetMeals / 3);
+  const dinnerNeeded = Math.ceil(targetMeals / 3);
+
+  const breakfastCount = acceptedMeals.filter(m => {
+    const meal = MEALS.find(ml => ml.meal_id === m.meal_id);
+    return meal?.meal_type === 'breakfast';
+  }).length;
+
+  const lunchCount = acceptedMeals.filter(m => {
+    const meal = MEALS.find(ml => ml.meal_id === m.meal_id);
+    return meal?.meal_type === 'lunch';
+  }).length;
+
+  const dinnerCount = acceptedMeals.filter(m => {
+    const meal = MEALS.find(ml => ml.meal_id === m.meal_id);
+    return meal?.meal_type === 'dinner';
+  }).length;
 
   const rightSwipeCount = acceptedMeals.length;
   const progress = (rightSwipeCount / targetMeals) * 100;
   const remainingNeeded = targetMeals - rightSwipeCount;
+
+  // Auto-advance to next meal type when current type is complete
+  useEffect(() => {
+    if (currentMealType === 'breakfast' && breakfastCount >= breakfastNeeded && breakfastNeeded > 0) {
+      setCurrentMealType('lunch');
+      setCurrentIndex(0);
+    } else if (currentMealType === 'lunch' && lunchCount >= lunchNeeded && lunchNeeded > 0) {
+      setCurrentMealType('dinner');
+      setCurrentIndex(0);
+    } else if (currentMealType === 'dinner' && dinnerCount >= dinnerNeeded && dinnerNeeded > 0) {
+      navigation.navigate('SwipeReview');
+    }
+  }, [breakfastCount, lunchCount, dinnerCount, currentMealType, breakfastNeeded, lunchNeeded, dinnerNeeded, navigation]);
 
   // Check if we've reached the target
   useEffect(() => {
@@ -56,28 +85,18 @@ const SwipeScreen: React.FC = () => {
   const handleSwipe = (direction: SwipeDirection) => {
     if (currentIndex >= availableMeals.length) return;
     const meal = availableMeals[currentIndex];
-    setPendingSwipe({ meal, direction });
-  };
-
-  const handleConfidenceSelect = (confidence: number) => {
-    if (!pendingSwipe) return;
 
     const newSwipe: FoodSwipe = {
       user_id: user?.id || 'demo-user',
-      meal_id: pendingSwipe.meal.meal_id,
-      meal_type: pendingSwipe.meal.meal_type,
-      swipe: pendingSwipe.direction,
-      confidence,
+      meal_id: meal.meal_id,
+      meal_type: meal.meal_type,
+      swipe: direction,
+      confidence: 3, // Default confidence level
       timestamp: new Date().toISOString(),
     };
 
     addSwipe(newSwipe);
-    setPendingSwipe(null);
     setCurrentIndex(currentIndex + 1);
-  };
-
-  const handleConfidenceSkip = () => {
-    handleConfidenceSelect(3);
   };
 
   const handleTap = (meal: Meal) => {
@@ -102,25 +121,46 @@ const SwipeScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Find Your Meals</Text>
-          <Text style={styles.subtitle}>
-            {rightSwipeCount} of {targetMeals} meals selected
+          <Text style={styles.title}>
+            {currentMealType === 'breakfast' ? 'Breakfast' : currentMealType === 'lunch' ? 'Lunch' : 'Dinner'}
           </Text>
-        </View>
-        <View style={styles.counterBadge}>
-          <Text style={styles.counterText}>{remainingNeeded}</Text>
-          <Text style={styles.counterLabel}>to go</Text>
+          <Text style={styles.subtitle}>
+            {currentMealType === 'breakfast' ? `${breakfastCount} of ${breakfastNeeded}` :
+             currentMealType === 'lunch' ? `${lunchCount} of ${lunchNeeded}` :
+             `${dinnerCount} of ${dinnerNeeded}`} selected
+          </Text>
         </View>
       </View>
 
       {/* Progress Bar */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBg}>
-          <View style={[styles.progressFill, { width: `${Math.min(progress, 100)}%` }]} />
+        <View style={styles.sectionProgress}>
+          <View style={styles.sectionBar}>
+            <View style={[styles.sectionFill, {
+              width: `${(breakfastCount / breakfastNeeded) * 100}%`,
+              backgroundColor: colors.swipeRight
+            }]} />
+          </View>
+          <Text style={styles.sectionLabel}>B</Text>
         </View>
-        <Text style={styles.progressText}>
-          Swipe right on {remainingNeeded} more {remainingNeeded === 1 ? 'meal' : 'meals'}
-        </Text>
+        <View style={styles.sectionProgress}>
+          <View style={styles.sectionBar}>
+            <View style={[styles.sectionFill, {
+              width: `${(lunchCount / lunchNeeded) * 100}%`,
+              backgroundColor: colors.swipeMaybe
+            }]} />
+          </View>
+          <Text style={styles.sectionLabel}>L</Text>
+        </View>
+        <View style={styles.sectionProgress}>
+          <View style={styles.sectionBar}>
+            <View style={[styles.sectionFill, {
+              width: `${(dinnerCount / dinnerNeeded) * 100}%`,
+              backgroundColor: colors.primary
+            }]} />
+          </View>
+          <Text style={styles.sectionLabel}>D</Text>
+        </View>
       </View>
 
       {/* Cards */}
@@ -163,37 +203,12 @@ const SwipeScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Action Buttons */}
-      {hasMoreMeals && (
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.nopeButton]}
-            onPress={() => handleSwipe('left')}
-          >
-            <Text style={[styles.actionIcon, { color: colors.swipeLeft }]}>✕</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.maybeButton]}
-            onPress={() => handleSwipe('maybe')}
-          >
-            <Text style={[styles.actionIcon, { color: colors.swipeMaybe }]}>?</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.likeButton]}
-            onPress={() => handleSwipe('right')}
-          >
-            <Text style={[styles.actionIcon, { color: '#fff' }]}>♥</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Instructions */}
       {hasMoreMeals && (
         <View style={styles.instructions}>
           <Text style={styles.instructionText}>
-            Swipe right to add • Swipe left to skip • Tap for details
+            Swipe right to add • Swipe left to skip
           </Text>
         </View>
       )}
@@ -203,13 +218,6 @@ const SwipeScreen: React.FC = () => {
         meal={selectedMeal}
         visible={showDetail}
         onClose={handleCloseDetail}
-      />
-
-      <ConfidenceSelector
-        visible={!!pendingSwipe}
-        direction={pendingSwipe?.direction || 'right'}
-        onSelect={handleConfidenceSelect}
-        onSkip={handleConfidenceSkip}
       />
     </SafeAreaView>
   );
@@ -258,26 +266,31 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   progressContainer: {
+    flexDirection: 'row',
     paddingHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 16,
+    gap: 8,
   },
-  progressBg: {
-    height: 8,
+  sectionProgress: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  sectionBar: {
+    width: '100%',
+    height: 6,
     backgroundColor: colors.inputBorder,
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: 'hidden',
+    marginBottom: 4,
   },
-  progressFill: {
+  sectionFill: {
     height: '100%',
-    backgroundColor: colors.swipeRight,
-    borderRadius: 4,
+    borderRadius: 3,
   },
-  progressText: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
+  sectionLabel: {
+    fontFamily: fonts.semiBold,
+    fontSize: 10,
     color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 8,
   },
   cardsContainer: {
     flex: 1,
@@ -315,41 +328,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 16,
     color: '#fff',
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 24,
-    paddingVertical: 16,
-  },
-  actionButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  nopeButton: {
-    backgroundColor: colors.cardBg,
-    borderWidth: 2,
-    borderColor: colors.swipeLeft,
-  },
-  maybeButton: {
-    backgroundColor: colors.cardBg,
-    borderWidth: 2,
-    borderColor: colors.swipeMaybe,
-  },
-  likeButton: {
-    backgroundColor: colors.swipeRight,
-  },
-  actionIcon: {
-    fontSize: 24,
-    fontWeight: '700',
   },
   instructions: {
     alignItems: 'center',

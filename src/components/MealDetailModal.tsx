@@ -76,6 +76,18 @@ const MealDetailModal: React.FC<MealDetailModalProps> = ({ meal, visible, onClos
                   </View>
                 ))}
               </View>
+
+              <Text style={styles.sectionTitle}>Instructions</Text>
+              <View style={styles.instructionsList}>
+                {meal.instructions.map((instruction, index) => (
+                  <View key={index} style={styles.instructionItem}>
+                    <View style={styles.instructionNumber}>
+                      <Text style={styles.instructionNumberText}>{index + 1}</Text>
+                    </View>
+                    <Text style={styles.instructionText}>{instruction}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
           </ScrollView>
 
@@ -206,6 +218,35 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     textTransform: 'capitalize',
+  },
+  instructionsList: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  instructionItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  instructionNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  instructionNumberText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  instructionText: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+    lineHeight: 22,
   },
   footer: {
     padding: 20,

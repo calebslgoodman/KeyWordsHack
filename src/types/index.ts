@@ -41,6 +41,7 @@ export interface Meal {
   calories: number;
   cook_time_minutes: number;
   ingredients: string[];
+  instructions: string[];
 }
 
 export interface FoodSwipe {
@@ -119,7 +120,7 @@ export const BUDGET_OPTIONS = [
 ];
 
 export const KITCHEN_TOOLS = [
-  'Microwave only',
+  'Microwave',
   'Stovetop',
   'Oven',
   'Air Fryer',

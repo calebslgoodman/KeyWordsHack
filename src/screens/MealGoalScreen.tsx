@@ -6,30 +6,55 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Slider from '@react-native-community/slider';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
 import { useMealPlan } from '../contexts/MealPlanContext';
 import { RootStackParamList } from '../navigation/types';
+import { COOK_TIME_OPTIONS } from '../types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const MealGoalScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { setMealsOutCount } = useMealPlan();
-  const [selectedEatOut, setSelectedEatOut] = useState(0);
+  const [totalMeals, setTotalMeals] = useState(21);
+  const [inputValue, setInputValue] = useState('21');
+  const [maxCookTime, setMaxCookTime] = useState(30);
 
-  const mealsToSwipe = 21 - selectedEatOut;
-
-  const handleContinue = () => {
-    setMealsOutCount(selectedEatOut);
-    navigation.navigate('Swipe');
+  const handleSliderChange = (value: number) => {
+    const rounded = Math.round(value);
+    setTotalMeals(rounded);
+    setInputValue(rounded.toString());
   };
 
-  const eatOutOptions = [0, 3, 5, 7, 10, 14];
+  const handleInputChange = (text: string) => {
+    setInputValue(text);
+    const numValue = parseInt(text);
+    if (!isNaN(numValue) && numValue >= 0 && numValue <= 21) {
+      setTotalMeals(numValue);
+    }
+  };
+
+  const handleInputBlur = () => {
+    const numValue = parseInt(inputValue);
+    if (isNaN(numValue) || numValue < 0 || numValue > 21) {
+      setInputValue(totalMeals.toString());
+    }
+  };
+
+  const mealsToSwipe = totalMeals;
+  const mealsOut = 21 - totalMeals;
+
+  const handleContinue = () => {
+    setMealsOutCount(mealsOut);
+    navigation.navigate('Swipe');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -41,43 +66,63 @@ const MealGoalScreen: React.FC = () => {
           <Text style={styles.emoji}>📅</Text>
           <Text style={styles.title}>Plan Your Week</Text>
           <Text style={styles.subtitle}>
-            How many meals are you planning to eat out or skip this week?
+            How many meals do you want to plan this week? (Max: 21 meals)
           </Text>
         </View>
 
-        {/* Eat Out Selector */}
+        {/* Cooking Time Selector */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Meals eating out</Text>
-          <View style={styles.optionsGrid}>
-            {eatOutOptions.map((count) => (
+          <Text style={styles.sectionTitle}>How much time to cook this week?</Text>
+          <View style={styles.cookTimeGrid}>
+            {COOK_TIME_OPTIONS.map((option) => (
               <TouchableOpacity
-                key={count}
+                key={option.value}
                 style={[
-                  styles.optionCard,
-                  selectedEatOut === count && styles.optionCardSelected,
+                  styles.cookTimeCard,
+                  maxCookTime === option.value && styles.cookTimeCardSelected,
                 ]}
-                onPress={() => setSelectedEatOut(count)}
+                onPress={() => setMaxCookTime(option.value)}
                 activeOpacity={0.7}
               >
                 <Text
                   style={[
-                    styles.optionNumber,
-                    selectedEatOut === count && styles.optionNumberSelected,
+                    styles.cookTimeLabel,
+                    maxCookTime === option.value && styles.cookTimeLabelSelected,
                   ]}
                 >
-                  {count}
-                </Text>
-                <Text
-                  style={[
-                    styles.optionLabel,
-                    selectedEatOut === count && styles.optionLabelSelected,
-                  ]}
-                >
-                  {count === 0 ? 'None' : count === 21 ? 'All' : 'meals'}
+                  {option.label}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+
+        {/* Meal Selector with Slider and Input */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Total meals per week</Text>
+
+          <View style={styles.sliderContainer}>
+            <View style={styles.valueDisplay}>
+              <Text style={styles.valueNumber}>{totalMeals}</Text>
+              <Text style={styles.valueLabel}>meals to plan</Text>
+            </View>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={21}
+              step={1}
+              value={totalMeals}
+              onValueChange={handleSliderChange}
+              minimumTrackTintColor={colors.primary}
+              maximumTrackTintColor={colors.inputBorder}
+              thumbTintColor={colors.primary}
+            />
+            <View style={styles.sliderLabels}>
+              <Text style={styles.sliderLabel}>0</Text>
+              <Text style={styles.sliderLabel}>21</Text>
+            </View>
+          </View>
+
         </View>
 
         {/* Summary Card */}
@@ -85,41 +130,18 @@ const MealGoalScreen: React.FC = () => {
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryNumber}>{mealsToSwipe}</Text>
-              <Text style={styles.summaryLabel}>Meals to cook</Text>
+              <Text style={styles.summaryLabel}>Meals to plan</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryNumber}>{selectedEatOut}</Text>
-              <Text style={styles.summaryLabel}>Eating out</Text>
+              <Text style={styles.summaryNumber}>{mealsOut}</Text>
+              <Text style={styles.summaryLabel}>Other/Skipping</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
               <Text style={styles.summaryNumber}>21</Text>
-              <Text style={styles.summaryLabel}>Total meals</Text>
+              <Text style={styles.summaryLabel}>Max possible</Text>
             </View>
-          </View>
-        </View>
-
-        {/* Breakdown */}
-        <View style={styles.breakdownCard}>
-          <Text style={styles.breakdownTitle}>Your week breakdown</Text>
-          <View style={styles.breakdownRow}>
-            <View style={[styles.dot, { backgroundColor: colors.swipeRight }]} />
-            <Text style={styles.breakdownText}>
-              {Math.ceil(mealsToSwipe / 3)} breakfasts to plan
-            </Text>
-          </View>
-          <View style={styles.breakdownRow}>
-            <View style={[styles.dot, { backgroundColor: colors.swipeMaybe }]} />
-            <Text style={styles.breakdownText}>
-              {Math.ceil(mealsToSwipe / 3)} lunches to plan
-            </Text>
-          </View>
-          <View style={styles.breakdownRow}>
-            <View style={[styles.dot, { backgroundColor: colors.primary }]} />
-            <Text style={styles.breakdownText}>
-              {Math.ceil(mealsToSwipe / 3)} dinners to plan
-            </Text>
           </View>
         </View>
 
@@ -189,40 +211,62 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  cookTimeGrid: {
     gap: 12,
   },
-  optionCard: {
-    width: '30%',
+  cookTimeCard: {
     backgroundColor: colors.cardBg,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.inputBorder,
   },
-  optionCardSelected: {
+  cookTimeCardSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryLight,
   },
-  optionNumber: {
-    fontFamily: fonts.bold,
-    fontSize: 28,
-    color: colors.text,
-  },
-  optionNumberSelected: {
-    color: colors.primaryDark,
-  },
-  optionLabel: {
+  cookTimeLabel: {
     fontFamily: fonts.medium,
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
+    fontSize: 15,
+    color: colors.text,
+    textAlign: 'center',
   },
-  optionLabelSelected: {
+  cookTimeLabelSelected: {
+    fontFamily: fonts.semiBold,
     color: colors.primaryDark,
+  },
+  sliderContainer: {
+    marginBottom: 24,
+  },
+  valueDisplay: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  valueNumber: {
+    fontFamily: fonts.bold,
+    fontSize: 48,
+    color: colors.primary,
+    lineHeight: 56,
+  },
+  valueLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    color: colors.textMuted,
+    marginTop: -4,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  sliderLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    color: colors.textMuted,
   },
   summaryCard: {
     backgroundColor: colors.cardBg,
@@ -258,34 +302,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 40,
     backgroundColor: colors.inputBorder,
-  },
-  breakdownCard: {
-    backgroundColor: colors.cardBg,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  breakdownTitle: {
-    fontFamily: fonts.semiBold,
-    fontSize: 14,
-    color: colors.text,
-    marginBottom: 12,
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 10,
-  },
-  breakdownText: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    color: colors.textMuted,
   },
   infoCard: {
     flexDirection: 'row',
