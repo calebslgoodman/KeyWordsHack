@@ -53,6 +53,30 @@ export interface FoodSwipe {
   timestamp: string;
 }
 
+export interface MealPlanGoal {
+  user_id: string;
+  meals_per_week: number; // 0-21
+  max_cook_time_minutes: number; // Weekly cooking time preference
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserMealPlan {
+  id: string;
+  user_id: string;
+  meal_id: string;
+  quantity: number; // How many times to make this meal (1-7)
+  week_start_date: string; // ISO date string
+  status: 'active' | 'archived' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MealPlanEntry {
+  meal_id: string;
+  quantity: number;
+}
+
 // Onboarding Types
 export interface OnboardingData {
   allergies: string[];

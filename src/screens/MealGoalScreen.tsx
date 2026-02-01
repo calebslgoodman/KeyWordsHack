@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +16,8 @@ import Slider from '@react-native-community/slider';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
 import { useMealPlan } from '../contexts/MealPlanContext';
+import { useAuth } from '../contexts/AuthContext';
+import { saveMealPlanGoal } from '../lib/api';
 import { RootStackParamList } from '../navigation/types';
 import { COOK_TIME_OPTIONS } from '../types';
 
@@ -22,10 +25,12 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const MealGoalScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { setMealsOutCount } = useMealPlan();
+  const { user } = useAuth();
+  const { setMealsOutCount, resetPlan } = useMealPlan();
   const [totalMeals, setTotalMeals] = useState(21);
   const [inputValue, setInputValue] = useState('21');
   const [maxCookTime, setMaxCookTime] = useState(30);
+  const [saving, setSaving] = useState(false);
 
   const handleSliderChange = (value: number) => {
     const rounded = Math.round(value);
@@ -51,8 +56,58 @@ const MealGoalScreen: React.FC = () => {
   const mealsToSwipe = totalMeals;
   const mealsOut = 21 - totalMeals;
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    console.log('MealGoalScreen - Setting values:', {
+      totalMeals,
+      mealsOut,
+      mealsToSwipe,
+    });
+
+    setSaving(true);
+
+    // Save meal plan goal to Supabase
+    console.log('===== DEBUGGING SUPABASE SAVE =====');
+    console.log('User object:', JSON.stringify(user, null, 2));
+    console.log('User ID:', user?.id);
+    console.log('User ID type:', typeof user?.id);
+    console.log('Data to save:', {
+      userId: user?.id,
+      mealsPerWeek: totalMeals,
+      maxCookTime: maxCookTime,
+    });
+
+    if (user?.id) {
+      console.log('User is authenticated, attempting to save...');
+      const result = await saveMealPlanGoal(user.id, totalMeals, maxCookTime);
+      console.log('Save result:', result);
+
+      if (!result.success) {
+        console.error('Failed to save meal plan goal:', result.error);
+        Alert.alert(
+          'Database Error',
+          `Could not save meal plan: ${result.error}\n\nDebugging info:\n- User ID: ${user.id}\n- Check console for full details\n- Verify you ran the SQL migration\n- Check Supabase RLS policies`,
+          [{ text: 'Continue Anyway', onPress: () => {} }]
+        );
+      } else {
+        console.log('✅ Meal plan goal saved successfully to Supabase');
+      }
+    } else {
+      console.warn('❌ No user logged in - skipping database save');
+      console.warn('User object is:', user);
+      Alert.alert(
+        'Not Logged In',
+        'You are not logged in. Meal plan will not be saved to the database.',
+        [{ text: 'OK', onPress: () => {} }]
+      );
+    }
+    console.log('===== END DEBUGGING =====');
+
+    // Reset any previous plan data before starting fresh
+    resetPlan();
     setMealsOutCount(mealsOut);
+    console.log('After reset and set, mealsOut should be:', mealsOut);
+
+    setSaving(false);
     navigation.navigate('Swipe');
   };
 
@@ -158,13 +213,13 @@ const MealGoalScreen: React.FC = () => {
       {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.continueButton, mealsToSwipe === 0 && styles.continueButtonDisabled]}
+          style={[styles.continueButton, (mealsToSwipe === 0 || saving) && styles.continueButtonDisabled]}
           onPress={handleContinue}
-          disabled={mealsToSwipe === 0}
+          disabled={mealsToSwipe === 0 || saving}
           activeOpacity={0.8}
         >
           <Text style={styles.continueButtonText}>
-            Start Swiping ({mealsToSwipe} meals)
+            {saving ? 'Saving...' : `Start Swiping (${mealsToSwipe} meals)`}
           </Text>
         </TouchableOpacity>
       </View>

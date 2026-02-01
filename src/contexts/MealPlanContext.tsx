@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { FoodSwipe, Meal } from '../types';
+import { getFoodSwipes, getMealPlanGoal } from '../lib/api';
+import { useAuth } from './AuthContext';
 
 interface MealPlanContextType {
   mealsOutCount: number;
@@ -27,8 +29,38 @@ export const useMealPlan = () => {
 };
 
 export const MealPlanProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [mealsOutCount, setMealsOutCount] = useState(0);
   const [swipes, setSwipes] = useState<FoodSwipe[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // Load user's swipes and meal plan goal from Supabase on mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!user?.id || loaded) return;
+
+      console.log('Loading user meal plan data from Supabase...');
+
+      // Load swipes
+      const userSwipes = await getFoodSwipes(user.id);
+      if (userSwipes.length > 0) {
+        console.log(`Loaded ${userSwipes.length} swipes from Supabase`);
+        setSwipes(userSwipes);
+      }
+
+      // Load meal plan goal
+      const mealPlanGoal = await getMealPlanGoal(user.id);
+      if (mealPlanGoal) {
+        console.log('Loaded meal plan goal:', mealPlanGoal);
+        const mealsOut = 21 - mealPlanGoal.meals_per_week;
+        setMealsOutCount(mealsOut);
+      }
+
+      setLoaded(true);
+    };
+
+    loadUserData();
+  }, [user?.id]);
 
   // Calculate derived values
   const mealsToSwipe = 21 - mealsOutCount; // Total meals in a week minus eating out
